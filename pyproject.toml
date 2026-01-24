@@ -1,0 +1,23 @@
+[project]
+name = "asr"
+version = "0.1.0"
+description = "本地语音识别工具集，支持 Whisper 和 FunASR 模型，提供语音转录、翻译和 YouTube 视频双语字幕生成功能"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "funasr>=1.2.0",
+    "huggingface-hub>=0.28.0",
+    "soundfile>=0.13.1",
+    "librosa>=0.10.0",
+    "torch>=2.9.1",
+    "transformers==4.51.3",
+    "yt-dlp>=2024.1.0",
+    "httpx>=0.27.0",
+    "stable-ts>=2.0",
+    "torchcodec>=0.9.1",
+    "easyocr>=1.7.0",
+    "pillow>=11.0.0",
+]
+
+[tool.uv.sources]
+transformers = { git = "https://github.com/huggingface/transformers.git" }
