@@ -8,6 +8,7 @@ from .base import ASRChunk, device
 def refine_timestamps_with_stable_ts(
     audio_path: Path,
     chunks: list[ASRChunk],
+    language: str | None = None,
 ) -> list[ASRChunk]:
     """使用stable-ts精调时间戳
 
@@ -16,6 +17,7 @@ def refine_timestamps_with_stable_ts(
     Args:
         audio_path: 音频文件路径
         chunks: 原始识别结果
+        language: 语言代码 (如 'ko', 'zh', 'en')
 
     Returns:
         时间戳精调后的识别结果
@@ -32,7 +34,8 @@ def refine_timestamps_with_stable_ts(
     try:
         model = stable_whisper.load_model("base", device=device)
         full_text = " ".join(c["text"] for c in chunks)
-        result = model.align(str(audio_path), full_text)
+        # 传递语言参数给 align 函数，避免 "expected argument for language" 错误
+        result = model.align(str(audio_path), full_text, language=language)
 
         refined_chunks: list[ASRChunk] = []
         for segment in result.segments:

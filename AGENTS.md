@@ -15,6 +15,9 @@ uv run funasr_nano.py <audio_file> [-l 中文|英文|日文] [-ts]
 # Run FunASR MLT (31 languages)
 uv run funasr_mlt.py <audio_file> [-l LANG] [-ts]
 
+# Run Qwen3-ASR (52 languages)
+uv run qwen3_asr.py <audio_file> [-l LANG] [-m MODEL] [--no-timestamps]
+
 # YouTube subtitle generation
 uv run youtube_subtitle.py <url> [-t TARGET_LANG] [-s SOURCE_LANG] [-m MODEL] [-a ASR_MODEL]
 

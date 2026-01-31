@@ -6,7 +6,7 @@ Automated workflow: Download YouTube video → Extract audio → Whisper/FunASR 
 
 ## Features
 
-- 🎙️ **Multiple ASR Engines** - Whisper Large V3 Turbo / FunASR Nano / FunASR MLT
+- 🎙️ **Multiple ASR Engines** - Whisper Large V3 Turbo / FunASR Nano / FunASR MLT / Qwen3-ASR
 - 🌍 **Multi-language Translation** - Supports Ollama local models
 - ⏱️ **Precise Timestamps** - Silero VAD voice detection + stable-ts timestamp optimization
 - 🎬 **Bilingual Subtitles** - ASS format, original + translated text displayed simultaneously
@@ -24,6 +24,7 @@ The project follows a modular design with the following components:
 - **asr/**: ASR engine abstraction layer supporting multiple models
   - **whisper.py**: OpenAI Whisper integration with VAD and stable-ts optimization
   - **funasr.py**: Alibaba FunASR integration with multiple language support
+  - **qwen.py**: Qwen3-ASR integration with 52 language support
   - **vad.py**: Silero VAD voice activity detection
   - **utils.py**: Utility functions for timestamp refinement
   - **base.py**: Common types and configurations
@@ -62,6 +63,13 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -s en -t z
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a whisper      # Whisper Large V3 Turbo (99 languages)
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a funasr-nano  # FunASR Nano (Chinese/English/Japanese)
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a funasr-mlt   # FunASR MLT (31 languages)
+uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a qwen-asr     # Qwen3-ASR (52 languages)
+
+# Standalone Qwen3-ASR usage
+uv run qwen3_asr.py audio/test.wav                    # Auto-detect language
+uv run qwen3_asr.py audio/test.wav -l zh              # Specify Chinese
+uv run qwen3_asr.py audio/test.wav -m qwen-asr-small  # Use 0.6B lightweight model
+uv run qwen3_asr.py audio/test.wav --no-timestamps    # Text only, no timestamps
 
 # Specify Ollama translation model
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -m gemini-3-flash-preview:cloud
@@ -92,7 +100,7 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" --subtitle
 | `url` | YouTube video URL | (required) |
 | `-t, --target-lang` | Target language code for translation | `zh-CN` |
 | `-s, --source-lang` | Source language code | Auto-detect |
-| `-a, --asr` | ASR model: `whisper` / `funasr-nano` / `funasr-mlt` | `whisper` |
+| `-a, --asr` | ASR model: `whisper` / `funasr-nano` / `funasr-mlt` / `qwen-asr` | `whisper` |
 | `--download-dir` | Video download directory | `data/video` |
 | `-o, --result-dir` | Result output directory | `data/result` |
 | `-m, --model` | Ollama translation model | `glm-4.7:cloud` |
@@ -117,6 +125,8 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" --subtitle
 | `whisper` | OpenAI Whisper Large V3 Turbo (default) | 99 languages |
 | `funasr-nano` | Alibaba FunASR Nano | Chinese, English, Japanese |
 | `funasr-mlt` | Alibaba FunASR MLT | 31 languages |
+| `qwen-asr` | Alibaba Qwen3-ASR-1.7B | 52 languages + 22 Chinese dialects |
+| `qwen-asr-small` | Alibaba Qwen3-ASR-0.6B (faster) | 52 languages + 22 Chinese dialects |
 
 ### Translation Models
 
@@ -146,6 +156,9 @@ Models are automatically downloaded from HuggingFace to `./model/` directory on 
 | `whisper-large-v3-turbo/` | [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo) |
 | `Fun-ASR-Nano-2512/` | [FunAudioLLM/FunASR-Nano-2512](https://huggingface.co/FunAudioLLM/FunASR-Nano-2512) |
 | `Fun-ASR-MLT-Nano-2512/` | [FunAudioLLM/FunASR-MLT-Nano-2512](https://huggingface.co/FunAudioLLM/FunASR-MLT-Nano-2512) |
+| `Qwen3-ASR-1.7B/` | [Qwen/Qwen3-ASR-1.7B](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) |
+| `Qwen3-ASR-0.6B/` | [Qwen/Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B) |
+| `Qwen3-ForcedAligner-0.6B/` | [Qwen/Qwen3-ForcedAligner-0.6B](https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B) (timestamps) |
 
 ## Hardware Requirements
 
@@ -160,16 +173,21 @@ Models are automatically downloaded from HuggingFace to `./model/` directory on 
 ```
 ASR/
 ├── youtube_subtitle.py          # Main entry point orchestrating the workflow
+├── qwen3_asr.py                 # Standalone Qwen3-ASR CLI tool
 ├── pyproject.toml               # Project configuration and dependencies
 ├── model/                       # Model storage directory (auto-download)
 │   ├── whisper-large-v3-turbo/  # Whisper model
 │   ├── Fun-ASR-Nano-2512/       # FunASR Nano model (Chinese/English/Japanese)
-│   └── Fun-ASR-MLT-Nano-2512/   # FunASR MLT model (31 languages)
+│   ├── Fun-ASR-MLT-Nano-2512/   # FunASR MLT model (31 languages)
+│   ├── Qwen3-ASR-1.7B/          # Qwen3-ASR model (52 languages)
+│   ├── Qwen3-ASR-0.6B/          # Qwen3-ASR lightweight model
+│   └── Qwen3-ForcedAligner-0.6B/ # Qwen3 timestamp aligner
 ├── asr/                         # ASR engine abstraction layer
 │   ├── __init__.py              # Module exports
 │   ├── base.py                  # Common types and configurations
 │   ├── whisper.py               # Whisper integration
 │   ├── funasr.py                # FunASR integration
+│   ├── qwen.py                  # Qwen3-ASR integration
 │   ├── vad.py                   # Voice activity detection
 │   └── utils.py                 # Utility functions
 ├── data/                        # Data directory
@@ -202,8 +220,9 @@ The project implements intelligent text segmentation with multiple strategies:
 
 Main dependencies:
 - `torch` >= 2.9.1
-- `transformers` == 4.51.3
+- `transformers` >= 4.51.3
 - `funasr` >= 1.2.0
+- `qwen-asr` >= 0.0.6 (Qwen3-ASR support)
 - `yt-dlp` >= 2024.1.0
 - `httpx` >= 0.27.0
 - `stable-ts` >= 2.0 (timestamp optimization)

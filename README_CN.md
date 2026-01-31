@@ -6,7 +6,7 @@
 
 ## 功能特性
 
-- 🎙️ **多 ASR 引擎** - Whisper Large V3 Turbo / FunASR Nano / FunASR MLT
+- 🎙️ **多 ASR 引擎** - Whisper Large V3 Turbo / FunASR Nano / FunASR MLT / Qwen3-ASR
 - 🌍 **多语言翻译** - 支持 Ollama 本地模型
 - ⏱️ **精准时间戳** - Silero VAD 语音检测 + stable-ts 时间戳优化
 - 🎬 **双语字幕** - ASS 格式，原文+译文同时显示
@@ -24,6 +24,7 @@
 - **asr/**: 支持多种模型的 ASR 引擎抽象层
   - **whisper.py**: OpenAI Whisper 集成，支持 VAD 和 stable-ts 优化
   - **funasr.py**: 阿里 FunASR 集成，支持多种语言
+  - **qwen.py**: Qwen3-ASR 集成，支持 52 种语言
   - **vad.py**: Silero VAD 语音活动检测
   - **utils.py**: 时间戳优化的实用函数
   - **base.py**: 通用类型和配置
@@ -62,6 +63,13 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -s en -t z
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a whisper      # Whisper Large V3 Turbo (99 种语言)
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a funasr-nano  # FunASR Nano (中英日)
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a funasr-mlt   # FunASR MLT (31 种语言)
+uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -a qwen-asr     # Qwen3-ASR (52 种语言)
+
+# 独立使用 Qwen3-ASR
+uv run qwen3_asr.py audio/test.wav                    # 自动检测语言
+uv run qwen3_asr.py audio/test.wav -l zh              # 指定中文
+uv run qwen3_asr.py audio/test.wav -m qwen-asr-small  # 使用 0.6B 轻量模型
+uv run qwen3_asr.py audio/test.wav --no-timestamps    # 仅输出文本，不含时间戳
 
 # 指定 Ollama 翻译模型
 uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" -m gemini-3-flash-preview:cloud
@@ -92,7 +100,7 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" --subtitle
 | `url` | YouTube 视频 URL | (必需) |
 | `-t, --target-lang` | 翻译目标语言代码 | `zh-CN` |
 | `-s, --source-lang` | 源语言代码 | 自动检测 |
-| `-a, --asr` | ASR 模型：`whisper` / `funasr-nano` / `funasr-mlt` | `whisper` |
+| `-a, --asr` | ASR 模型：`whisper` / `funasr-nano` / `funasr-mlt` / `qwen-asr` | `whisper` |
 | `--download-dir` | 视频下载目录 | `data/video` |
 | `-o, --result-dir` | 结果输出目录 | `data/result` |
 | `-m, --model` | Ollama 翻译模型 | `glm-4.7:cloud` |
@@ -117,6 +125,8 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" --subtitle
 | `whisper` | OpenAI Whisper Large V3 Turbo (默认) | 99 种语言 |
 | `funasr-nano` | 阿里 FunASR Nano | 中文、英文、日文 |
 | `funasr-mlt` | 阿里 FunASR MLT | 31 种语言 |
+| `qwen-asr` | 阿里 Qwen3-ASR-1.7B | 52 种语言 + 22 种中国方言 |
+| `qwen-asr-small` | 阿里 Qwen3-ASR-0.6B (更快) | 52 种语言 + 22 种中国方言 |
 
 ### 翻译模型
 
@@ -146,6 +156,9 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" --subtitle
 | `whisper-large-v3-turbo/` | [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo) |
 | `Fun-ASR-Nano-2512/` | [FunAudioLLM/FunASR-Nano-2512](https://huggingface.co/FunAudioLLM/FunASR-Nano-2512) |
 | `Fun-ASR-MLT-Nano-2512/` | [FunAudioLLM/FunASR-MLT-Nano-2512](https://huggingface.co/FunAudioLLM/FunASR-MLT-Nano-2512) |
+| `Qwen3-ASR-1.7B/` | [Qwen/Qwen3-ASR-1.7B](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) |
+| `Qwen3-ASR-0.6B/` | [Qwen/Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B) |
+| `Qwen3-ForcedAligner-0.6B/` | [Qwen/Qwen3-ForcedAligner-0.6B](https://huggingface.co/Qwen/Qwen3-ForcedAligner-0.6B) (时间戳) |
 
 ## 硬件要求
 
@@ -160,16 +173,21 @@ uv run youtube_subtitle.py "https://www.youtube.com/watch?v=VIDEO_ID" --subtitle
 ```
 ASR/
 ├── youtube_subtitle.py          # 主入口点，协调整个工作流程
+├── qwen3_asr.py                 # 独立的 Qwen3-ASR 命令行工具
 ├── pyproject.toml               # 项目配置和依赖
 ├── model/                       # 模型存储目录 (自动下载)
 │   ├── whisper-large-v3-turbo/  # Whisper 模型
 │   ├── Fun-ASR-Nano-2512/       # FunASR Nano 模型 (中英日)
-│   └── Fun-ASR-MLT-Nano-2512/   # FunASR MLT 模型 (31 种语言)
+│   ├── Fun-ASR-MLT-Nano-2512/   # FunASR MLT 模型 (31 种语言)
+│   ├── Qwen3-ASR-1.7B/          # Qwen3-ASR 模型 (52 种语言)
+│   ├── Qwen3-ASR-0.6B/          # Qwen3-ASR 轻量模型
+│   └── Qwen3-ForcedAligner-0.6B/ # Qwen3 时间戳对齐器
 ├── asr/                         # ASR 引擎抽象层
 │   ├── __init__.py              # 模块导出
 │   ├── base.py                  # 通用类型和配置
 │   ├── whisper.py               # Whisper 集成
 │   ├── funasr.py                # FunASR 集成
+│   ├── qwen.py                  # Qwen3-ASR 集成
 │   ├── vad.py                   # 语音活动检测
 │   └── utils.py                 # 实用函数
 ├── data/                        # 数据目录
@@ -202,8 +220,9 @@ ASR/
 
 主要依赖：
 - `torch` >= 2.9.1
-- `transformers` == 4.51.3
+- `transformers` >= 4.51.3
 - `funasr` >= 1.2.0
+- `qwen-asr` >= 0.0.6 (Qwen3-ASR 支持)
 - `yt-dlp` >= 2024.1.0
 - `httpx` >= 0.27.0
 - `stable-ts` >= 2.0 (时间戳优化)

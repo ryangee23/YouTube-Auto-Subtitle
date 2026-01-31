@@ -136,15 +136,21 @@ def transcribe_audio_funasr(
     import tempfile
 
     import torchaudio
+    import torchaudio.transforms as T
 
-    lang_map = {
-        "zh": "中文",
-        "en": "英文",
-        "ja": "日文",
-        "ko": "韩文",
-        "yue": "粤语",
-    }
-    lang = lang_map.get(language, language) if language else None
+    # 对于 SenseVoice 等模型，通常需要标准 ISO 代码 (zh, en, ko, ja)
+    # 对于旧款 Paraformer，可能需要中文名。优先尝试原始输入。
+    lang = language
+
+    import re
+
+    def clean_text(text: str) -> str:
+        """清理 SenseVoice 的富文本标签 (如 <|HAPPY|>)"""
+        if not text:
+            return ""
+        # 移除 <|...|> 格式的标签
+        text = re.sub(r'<\|.*?\|>', '', text)
+        return text.strip()
 
     chunks: list[ASRChunk] = []
 
@@ -157,6 +163,11 @@ def transcribe_audio_funasr(
             vad_segments = [(0, None)]
 
         waveform, sample_rate = torchaudio.load(str(audio_path))
+        # FunASR 内部通常期望 16kHz 采样率
+        if sample_rate != 16000:
+            resampler = T.Resample(sample_rate, 16000)
+            waveform = resampler(waveform)
+            sample_rate = 16000
 
         for seg_idx, (seg_start, seg_end) in enumerate(vad_segments):
             msg = f"处理片段 {seg_idx + 1}/{len(vad_segments)}: {seg_start:.2f}s"
@@ -185,28 +196,48 @@ def transcribe_audio_funasr(
 
                 if result and len(result) > 0:
                     res = result[0]
-                    if "sentence_info" in res:
+                    # 优先处理带有时间戳信息的 sentence_info (Paraformer/SenseVoice)
+                    if "sentence_info" in res and res["sentence_info"]:
                         for sent in res["sentence_info"]:
                             start_ms = sent.get("start", 0)
                             end_ms = sent.get("end", start_ms + 3000)
-                            text = sent.get("text", "").strip()
+                            text = clean_text(sent.get("text", ""))
                             if text:
                                 chunks.append({
                                     "start": seg_start + start_ms / 1000.0,
                                     "end": seg_start + end_ms / 1000.0,
                                     "text": text,
                                 })
+                    # 兼容 SenseVoice 某些版本的 timestamp 输出
+                    elif "timestamp" in res and res["timestamp"]:
+                        # 假设 timestamp 格式为 [[start, end], [start, end], ...]
+                        # 并且 text 对应这些时间戳
+                        text_raw = res.get("text", "")
+                        # 这里简便处理，如果只有一个文本对应多个时间戳，或者 text 是分好段的
+                        text = clean_text(text_raw)
+                        if text:
+                            # 尝试获取第一段和最后一段的时间
+                            ts = res["timestamp"]
+                            start_ms = ts[0][0] if ts else 0
+                            end_ms = ts[-1][1] if ts else start_ms + 3000
+                            chunks.append({
+                                "start": seg_start + start_ms / 1000.0,
+                                "end": seg_start + end_ms / 1000.0,
+                                "text": text,
+                            })
                     elif "text" in res:
-                        text = res["text"].strip()
+                        text = clean_text(res["text"])
                         if text:
                             chunks.append({
                                 "start": seg_start,
-                                "end": seg_end if seg_end else seg_start + 10.0,
+                                "end": seg_end if seg_end else seg_start + 5.0,
                                 "text": text,
                             })
             finally:
                 Path(tmp_path).unlink(missing_ok=True)
     else:
+        # 即使不使用 VAD，也确保加载和可能的重采样以获得最佳效果
+        # 虽然 AutoModel 内部会处理，但显式处理更可控
         result = model.generate(
             input=str(audio_path),
             language=lang,
@@ -217,27 +248,40 @@ def transcribe_audio_funasr(
 
         if result and len(result) > 0:
             res = result[0]
-            if "sentence_info" in res:
+            if "sentence_info" in res and res["sentence_info"]:
                 for sent in res["sentence_info"]:
                     start_ms = sent.get("start", 0)
                     end_ms = sent.get("end", start_ms + 3000)
-                    text = sent.get("text", "").strip()
+                    text = clean_text(sent.get("text", ""))
                     if text:
                         chunks.append({
                             "start": start_ms / 1000.0,
                             "end": end_ms / 1000.0,
                             "text": text,
                         })
+            elif "timestamp" in res and res["timestamp"]:
+                text = clean_text(res.get("text", ""))
+                if text:
+                    ts = res["timestamp"]
+                    start_ms = ts[0][0]
+                    end_ms = ts[-1][1]
+                    chunks.append({
+                        "start": start_ms / 1000.0,
+                        "end": end_ms / 1000.0,
+                        "text": text,
+                    })
             elif "text" in res:
-                chunks.append({
-                    "start": 0.0,
-                    "end": 10.0,
-                    "text": res["text"].strip(),
-                })
+                text = clean_text(res["text"])
+                if text:
+                    chunks.append({
+                        "start": 0.0,
+                        "end": 5.0, # 默认一个较短的时间，后续会被 stable-ts 修正或合并
+                        "text": text,
+                    })
 
     print(f"FunASR 识别完成，共 {len(chunks)} 个片段")
 
     if refine_timestamps and chunks:
-        chunks = refine_timestamps_with_stable_ts(audio_path, chunks)
+        chunks = refine_timestamps_with_stable_ts(audio_path, chunks, language=lang)
 
     return chunks

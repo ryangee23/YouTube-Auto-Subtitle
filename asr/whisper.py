@@ -164,9 +164,10 @@ def transcribe_audio(
 
             try:
                 result = pipe(
-                    tmp_path,
+                    {"raw": segment_audio, "sampling_rate": 16000},
                     return_timestamps=True,
                     generate_kwargs=generate_kwargs,
+                    language=language,
                 )
 
                 for chunk in result.get("chunks", []):
@@ -186,12 +187,17 @@ def transcribe_audio(
         print(f"识别完成，共 {len(chunks)} 个片段")
         return chunks
 
+    import numpy as np
+
+    audio_array, _ = librosa.load(str(audio_path), sr=16000, mono=True)
+
     result = pipe(
-        str(audio_path),
+        audio_array,
         return_timestamps=True,
         chunk_length_s=15,
         stride_length_s=5,
         generate_kwargs=generate_kwargs,
+        language=language,
     )
 
     chunks: list[ASRChunk] = []

@@ -14,6 +14,8 @@ ASR_MODELS = {
     "whisper": Path("./model/whisper-large-v3-turbo"),
     "funasr-nano": Path("./model/Fun-ASR-Nano-2512"),
     "funasr-mlt": Path("./model/Fun-ASR-MLT-Nano-2512"),
+    "qwen-asr": "Qwen/Qwen3-ASR-1.7B",  # HuggingFace 模型名称
+    "qwen-asr-small": "Qwen/Qwen3-ASR-0.6B",  # 轻量版
 }
 DEFAULT_ASR_MODEL = "whisper"
 

@@ -10,14 +10,14 @@ dependencies = [
     "soundfile>=0.13.1",
     "librosa>=0.10.0",
     "torch>=2.9.1",
-    "transformers==4.51.3",
+    "transformers>=4.51.3",
     "yt-dlp>=2024.1.0",
     "httpx>=0.27.0",
     "stable-ts>=2.0",
     "torchcodec>=0.9.1",
     "easyocr>=1.7.0",
     "pillow>=11.0.0",
+    "qwen-asr>=0.0.6",
 ]
 
 [tool.uv.sources]
-transformers = { git = "https://github.com/huggingface/transformers.git" }

@@ -42,20 +42,20 @@ from asr.base import ASR_MODELS, DEFAULT_ASR_MODEL
 # Ollama 本地模型配置
 # ============================================================
 OLLAMA_MODELS = [
-    "glm-4.7:cloud",                # 智谱GLM-4.7云端模型
+    "glm-4.7:cloud",  # 智谱GLM-4.7云端模型
     "gemini-3-flash-preview:cloud",  # Google Gemini 3 Flash预览版
-    "minimax-m2.1:cloud",            # MiniMax M2.1云端模型
+    "minimax-m2.1:cloud",  # MiniMax M2.1云端模型
 ]
 OLLAMA_URL = "http://localhost:11434/api/generate"  # Ollama本地API端点
 
 # ============================================================
 # 目录路径配置
 # ============================================================
-DOWNLOAD_DIR = Path("./data/video")   # 视频下载目录
-AUDIO_DIR = Path("./data/audio")      # 提取的音频存储目录
-OSS_DIR = Path("./data/oss")          # 生成的字幕文件目录
-RESULT_DIR = Path("./data/result")    # 最终输出（带字幕视频）目录
-CHUNKS_DIR = Path("./data/chunks")    # 识别结果缓存目录
+DOWNLOAD_DIR = Path("./data/video")  # 视频下载目录
+AUDIO_DIR = Path("./data/audio")  # 提取的音频存储目录
+OSS_DIR = Path("./data/oss")  # 生成的字幕文件目录
+RESULT_DIR = Path("./data/result")  # 最终输出（带字幕视频）目录
+CHUNKS_DIR = Path("./data/chunks")  # 识别结果缓存目录
 
 
 def sanitize_filename(title: str) -> str:
@@ -72,6 +72,7 @@ def sanitize_filename(title: str) -> str:
         'Hello_World_2024'
     """
     import re  # 正则表达式模块
+
     # 第一步：移除所有非英文字母、数字、空格的字符
     sanitized = re.sub(r"[^a-zA-Z0-9\s]", "", title)
     # 第二步：将连续空格替换为单个下划线，并去除首尾空格
@@ -80,7 +81,9 @@ def sanitize_filename(title: str) -> str:
     return sanitized[:100] if sanitized else "video"
 
 
-def download_youtube_subtitles(url: str, output_dir: Path, lang: str | None = None) -> Path | None:
+def download_youtube_subtitles(
+    url: str, output_dir: Path, lang: str | None = None
+) -> Path | None:
     """尝试下载YouTube视频的现有字幕
 
     优先下载人工字幕，如果不存在则下载自动生成的字幕。
@@ -184,11 +187,13 @@ def parse_subtitle_to_chunks(subtitle_path: Path) -> list[dict]:
             text = " ".join(text_lines)
             text = re.sub(r"\s+", " ", text).strip()
             if text:
-                chunks.append({
-                    "text": text,
-                    "start": time_to_seconds(time_match.group(1)),
-                    "end": time_to_seconds(time_match.group(2)),
-                })
+                chunks.append(
+                    {
+                        "text": text,
+                        "start": time_to_seconds(time_match.group(1)),
+                        "end": time_to_seconds(time_match.group(2)),
+                    }
+                )
 
     merged = []
     for chunk in chunks:
@@ -236,8 +241,8 @@ def download_youtube_video(url: str, output_dir: Path) -> Path:
     output_template = str(output_dir / f"{safe_title}.%(ext)s")
     ydl_opts = {
         "format": "bestvideo+bestaudio/best",  # 选择最佳视频+最佳音频，或单个最佳文件
-        "outtmpl": output_template,             # 输出文件名模板
-        "merge_output_format": "mp4",           # 合并后的输出格式
+        "outtmpl": output_template,  # 输出文件名模板
+        "merge_output_format": "mp4",  # 合并后的输出格式
     }
 
     # 使用配置好的选项创建下载器并下载
@@ -277,14 +282,18 @@ def extract_audio(video_path: Path, output_dir: Path) -> Path:
 
     # 构建FFmpeg命令
     cmd = [
-        "ffmpeg",           # FFmpeg可执行文件
-        "-y",               # 覆盖输出文件（不询问）
-        "-i", str(video_path),  # 输入文件
-        "-vn",              # 禁用视频流（只处理音频）
-        "-acodec", "pcm_s16le",  # 音频编码：PCM 16位小端
-        "-ar", "16000",     # 采样率：16kHz
-        "-ac", "1",         # 声道数：1（单声道）
-        str(audio_path)     # 输出文件
+        "ffmpeg",  # FFmpeg可执行文件
+        "-y",  # 覆盖输出文件（不询问）
+        "-i",
+        str(video_path),  # 输入文件
+        "-vn",  # 禁用视频流（只处理音频）
+        "-acodec",
+        "pcm_s16le",  # 音频编码：PCM 16位小端
+        "-ar",
+        "16000",  # 采样率：16kHz
+        "-ac",
+        "1",  # 声道数：1（单声道）
+        str(audio_path),  # 输出文件
     ]
     # 执行命令，check=True表示命令失败时抛出异常，capture_output隐藏输出
     subprocess.run(cmd, check=True, capture_output=True)
@@ -325,7 +334,9 @@ def load_chunks(path: Path) -> list[dict] | None:
     return None
 
 
-def translate_with_ollama(text: str, target_lang: str, model: str, max_retries: int = 3) -> str:
+def translate_with_ollama(
+    text: str, target_lang: str, model: str, max_retries: int = 3
+) -> str:
     """使用Ollama本地/云端模型翻译单条文本
 
     调用Ollama API进行翻译，支持自动重试以应对临时错误。
@@ -346,13 +357,18 @@ def translate_with_ollama(text: str, target_lang: str, model: str, max_retries: 
     prompt = f"将以下文本翻译成{target_lang}，只输出翻译结果，不要任何解释：\n\n{text}"
 
     import time  # 时间模块，用于重试间隔
+
     # 重试循环
     for attempt in range(max_retries):
         try:
             # 发送POST请求到Ollama API
             response = httpx.post(
                 OLLAMA_URL,
-                json={"model": model, "prompt": prompt, "stream": False},  # stream=False获取完整响应
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                },  # stream=False获取完整响应
                 timeout=60.0,  # 60秒超时
             )
             response.raise_for_status()  # 检查HTTP状态码
@@ -360,16 +376,14 @@ def translate_with_ollama(text: str, target_lang: str, model: str, max_retries: 
         except httpx.HTTPStatusError as e:
             # 如果是500错误且还有重试次数，等待后重试
             if e.response.status_code == 500 and attempt < max_retries - 1:
-                wait_time = 2 ** attempt  # 指数退避：1, 2, 4秒
+                wait_time = 2**attempt  # 指数退避：1, 2, 4秒
                 print(f"服务器错误，{wait_time}秒后重试...")
                 time.sleep(wait_time)
             else:
                 raise  # 其他错误或重试耗尽，抛出异常
 
 
-def translate_chunks(
-    chunks: list[dict], target_lang: str, model: str
-) -> list[dict]:
+def translate_chunks(chunks: list[dict], target_lang: str, model: str) -> list[dict]:
     """使用Ollama逐条翻译所有文本片段
 
     同步顺序翻译，适用于Ollama本地服务。
@@ -400,7 +414,7 @@ def translate_chunks(
                 break  # 成功则跳出重试循环
             except Exception as e:
                 if attempt < 2:
-                    wait_time = 2 ** attempt
+                    wait_time = 2**attempt
                     print(f"翻译失败，{wait_time}秒后重试: {e}")
                     time.sleep(wait_time)
                 else:
@@ -425,7 +439,18 @@ def translate_chunks(
 # 标点符号分类
 STRONG_PUNCTUATION = set("。.？?！!；;")  # 强标点，必断
 WEAK_PUNCTUATION = set("，,：:、")  # 弱标点，超长时断
-SEMANTIC_CONNECTORS = {"但是", "然后", "所以", "因此", "不过", "而且", "并且", "或者", "如果", "那么"}
+SEMANTIC_CONNECTORS = {
+    "但是",
+    "然后",
+    "所以",
+    "因此",
+    "不过",
+    "而且",
+    "并且",
+    "或者",
+    "如果",
+    "那么",
+}
 
 # 细粒度分割参数
 MAX_CHUNK_DURATION = 4.0  # 单个字幕最大持续时间（秒）
@@ -467,7 +492,10 @@ def split_text_smartly(
 
         # 检查是否在强标点处断开
         if char in STRONG_PUNCTUATION:
-            if line_count < max_lines - 1 and len(current_block) + len(current_line) <= max_chars * max_lines:
+            if (
+                line_count < max_lines - 1
+                and len(current_block) + len(current_line) <= max_chars * max_lines
+            ):
                 current_block += current_line
                 line_count += 1
             else:
@@ -488,7 +516,9 @@ def split_text_smartly(
 
             # 尝试在空格处断开
             if break_pos == -1:
-                for j in range(len(current_line) - 1, max(0, len(current_line) - 15), -1):
+                for j in range(
+                    len(current_line) - 1, max(0, len(current_line) - 15), -1
+                ):
                     if current_line[j] == " ":
                         break_pos = j + 1
                         break
@@ -568,11 +598,11 @@ def segment_chunks_smartly(
 
         # 计算基于时长需要的最小分段数
         min_splits_by_duration = max(1, int(duration / max_duration + 0.5))
-        
+
         # 计算基于字符数需要的最小分段数
         max_chars_per_block = max_chars * max_lines
         min_splits_by_chars = max(1, int(len(text) / max_chars_per_block + 0.5))
-        
+
         # 取两者较大值
         target_splits = max(min_splits_by_duration, min_splits_by_chars)
 
@@ -580,7 +610,7 @@ def segment_chunks_smartly(
         if target_splits == 1 and len(text) <= max_chars_per_block:
             result.append(chunk)
             continue
-            
+
         # 调整max_chars以产生足够的分段
         adjusted_max_chars = max(10, len(text) // target_splits // max_lines)
         blocks = split_text_smartly(text, min(max_chars, adjusted_max_chars), max_lines)
@@ -598,7 +628,11 @@ def segment_chunks_smartly(
         current_time = start
 
         for block in blocks:
-            block_duration = duration * len(block) / total_chars if total_chars > 0 else duration / len(blocks)
+            block_duration = (
+                duration * len(block) / total_chars
+                if total_chars > 0
+                else duration / len(blocks)
+            )
             block_end = min(current_time + block_duration, end)
 
             new_chunk = chunk.copy()
@@ -619,32 +653,32 @@ def segment_chunks_smartly(
 
 def force_split_text(text: str, num_splits: int) -> list[str]:
     """强制将文本均匀分割为指定数量的块
-    
+
     在标点符号和空格处优先分割，否则在字符边界分割。
-    
+
     Args:
         text: 待分割文本
         num_splits: 目标分割数量
-        
+
     Returns:
         分割后的文本块列表
     """
     if num_splits <= 1:
         return [text]
-    
+
     target_len = len(text) // num_splits
     blocks = []
     current_pos = 0
-    
+
     for i in range(num_splits - 1):
         end_pos = current_pos + target_len
         if end_pos >= len(text):
             break
-            
+
         # 在目标位置附近寻找最佳分割点
         best_pos = end_pos
         search_range = min(15, target_len // 2)
-        
+
         # 优先在强标点处分割
         for j in range(end_pos, max(current_pos, end_pos - search_range), -1):
             if j < len(text) and text[j] in STRONG_PUNCTUATION:
@@ -662,17 +696,17 @@ def force_split_text(text: str, num_splits: int) -> list[str]:
                     if j < len(text) and text[j] == " ":
                         best_pos = j + 1
                         break
-        
+
         block = text[current_pos:best_pos].strip()
         if block:
             blocks.append(block)
         current_pos = best_pos
-    
+
     # 添加剩余部分
     remaining = text[current_pos:].strip()
     if remaining:
         blocks.append(remaining)
-    
+
     return blocks if blocks else [text]
 
 
@@ -693,6 +727,11 @@ def generate_ass_subtitle(chunks: list[dict], output_path: Path) -> Path:
     # [Script Info]: 脚本元信息
     # [V4+ Styles]: 样式定义
     # [Events]: 字幕事件（对话）
+    # 样式说明：
+    # - 使用微软雅黑字体（更美观的中英文字体），字号适中
+    # - 原文：白色(FFFFFF)带阴影，字号32，底部偏上
+    # - 译文：天蓝色(80D7FF)带阴影，字号28，位于原文下方
+    # - 描边和背景增强可读性，行距适中
     ass_header = """[Script Info]
 Title: Bilingual Subtitles
 ScriptType: v4.00+
@@ -702,8 +741,8 @@ PlayResY: 1080
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Original,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,20,20,60,1
-Style: Translated,Arial,42,&H0000FFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,20,20,20,1
+Style: Original,Microsoft YaHei,32,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2.5,1.5,2,20,20,45,1
+Style: Translated,Microsoft YaHei,28,&H00FFD780,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,2,1,2,20,20,15,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -721,9 +760,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         Returns:
             ASS格式时间字符串，如"0:01:23.45"
         """
-        h = int(seconds // 3600)         # 小时
+        h = int(seconds // 3600)  # 小时
         m = int((seconds % 3600) // 60)  # 分钟
-        s = seconds % 60                  # 秒（含小数）
+        s = seconds % 60  # 秒（含小数）
         return f"{h}:{m:02d}:{s:05.2f}"  # 格式化：分钟和秒补零
 
     lines = [ass_header]  # 从头部开始
@@ -757,6 +796,7 @@ def generate_srt_subtitle(chunks: list[dict], output_path: Path) -> Path:
     Returns:
         生成的字幕文件路径
     """
+
     def format_time_srt(seconds: float) -> str:
         """将秒数转换为SRT时间格式 HH:MM:SS,mmm"""
         h = int(seconds // 3600)
@@ -797,6 +837,7 @@ def generate_vtt_subtitle(chunks: list[dict], output_path: Path) -> Path:
     Returns:
         生成的字幕文件路径
     """
+
     def format_time_vtt(seconds: float) -> str:
         """将秒数转换为VTT时间格式 HH:MM:SS.mmm"""
         h = int(seconds // 3600)
@@ -838,8 +879,7 @@ def generate_json_subtitle(chunks: list[dict], output_path: Path) -> Path:
         生成的字幕文件路径
     """
     output_path.write_text(
-        json.dumps(chunks, ensure_ascii=False, indent=2),
-        encoding="utf-8"
+        json.dumps(chunks, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(f"JSON字幕已生成: {output_path}")
     return output_path
@@ -918,14 +958,17 @@ def burn_subtitles(video_path: Path, subtitle_path: Path, output_path: Path) -> 
 
     # 构建FFmpeg命令
     cmd = [
-        "ffmpeg",                      # FFmpeg可执行文件
-        "-y",                          # 覆盖输出文件
-        "-i", abs_video_path,          # 输入视频
+        "ffmpeg",  # FFmpeg可执行文件
+        "-y",  # 覆盖输出文件
+        "-i",
+        abs_video_path,  # 输入视频
         # 视频滤镜：使用subtitles滤镜烧录字幕
         # filename='...' 格式可以处理包含特殊字符的路径
-        "-vf", f"subtitles=filename='{safe_sub_path}'",
-        "-c:a", "copy",                # 音频直接复制（不重编码）
-        abs_output_path                # 输出文件
+        "-vf",
+        f"subtitles=filename='{safe_sub_path}'",
+        "-c:a",
+        "copy",  # 音频直接复制（不重编码）
+        abs_output_path,  # 输出文件
     ]
 
     # 执行命令
@@ -956,13 +999,15 @@ def main() -> None:
     parser.add_argument("url", help="YouTube视频URL")
     # 可选参数：目标翻译语言
     parser.add_argument(
-        "--target-lang", "-t",
+        "--target-lang",
+        "-t",
         default="zh-CN",
         help="目标翻译语言代码 (默认: zh-CN)",
     )
     # 可选参数：源语言
     parser.add_argument(
-        "--source-lang", "-s",
+        "--source-lang",
+        "-s",
         default=None,
         help="源语言代码，如 en, ja, zh (默认: 自动检测)",
     )
@@ -974,20 +1019,23 @@ def main() -> None:
     )
     # 可选参数：结果输出目录
     parser.add_argument(
-        "--result-dir", "-o",
+        "--result-dir",
+        "-o",
         default=str(RESULT_DIR),
         help=f"结果输出目录 (默认: {RESULT_DIR})",
     )
     # 可选参数：Ollama翻译模型选择
     parser.add_argument(
-        "--model", "-m",
+        "--model",
+        "-m",
         default=OLLAMA_MODELS[0],
         choices=OLLAMA_MODELS,
         help=f"Ollama翻译模型 (默认: {OLLAMA_MODELS[0]})",
     )
     # 可选参数：ASR模型选择
     parser.add_argument(
-        "--asr", "-a",
+        "--asr",
+        "-a",
         default=DEFAULT_ASR_MODEL,
         choices=list(ASR_MODELS.keys()),
         help=f"ASR模型选择 (默认: {DEFAULT_ASR_MODEL})",
@@ -995,7 +1043,8 @@ def main() -> None:
 
     # 可选参数：批处理大小
     parser.add_argument(
-        "--batch-size", "-b",
+        "--batch-size",
+        "-b",
         type=int,
         default=1,
         help="Whisper 批处理大小，增大可加速但需更多显存 (默认: 1)",
@@ -1074,10 +1123,10 @@ def main() -> None:
 
     # ====== 初始化目录 ======
     download_dir = Path(args.download_dir)  # 视频下载目录
-    result_dir = Path(args.result_dir)      # 结果输出目录
-    audio_dir = AUDIO_DIR                   # 音频目录
-    oss_dir = OSS_DIR                       # 字幕目录
-    chunks_dir = CHUNKS_DIR                 # 识别缓存目录
+    result_dir = Path(args.result_dir)  # 结果输出目录
+    audio_dir = AUDIO_DIR  # 音频目录
+    oss_dir = OSS_DIR  # 字幕目录
+    chunks_dir = CHUNKS_DIR  # 识别缓存目录
     # 创建所有必需的目录
     result_dir.mkdir(parents=True, exist_ok=True)
     audio_dir.mkdir(parents=True, exist_ok=True)
@@ -1105,7 +1154,9 @@ def main() -> None:
             chunks_path = youtube_chunks_path
         else:
             print("正在检查YouTube原有字幕...")
-            youtube_sub_path = download_youtube_subtitles(args.url, oss_dir, args.source_lang)
+            youtube_sub_path = download_youtube_subtitles(
+                args.url, oss_dir, args.source_lang
+            )
             if youtube_sub_path:
                 print("正在解析YouTube字幕...")
                 chunks = parse_subtitle_to_chunks(youtube_sub_path)
@@ -1137,10 +1188,14 @@ def main() -> None:
             print(f"正在加载 {args.asr} 模型...")
             if args.asr == "whisper":
                 # 加载Whisper模型
-                pipe = load_whisper_pipeline(batch_size=args.batch_size, model_key=args.asr)
+                pipe = load_whisper_pipeline(
+                    batch_size=args.batch_size, model_key=args.asr
+                )
                 print("正在识别语音...")
                 use_vad = not args.no_vad  # 根据参数决定是否使用VAD
-                chunks = transcribe_audio(pipe, audio_path, args.source_lang, use_vad=use_vad)
+                chunks = transcribe_audio(
+                    pipe, audio_path, args.source_lang, use_vad=use_vad
+                )
             else:
                 model = load_funasr_model(args.asr)
                 print("正在识别语音...")
@@ -1169,7 +1224,9 @@ def main() -> None:
     # ====== 步骤5：智能分段 ======
     if args.max_chars or args.max_lines or args.max_duration:
         print("正在进行智能分段...")
-        chunks = segment_chunks_smartly(chunks, args.max_chars, args.max_lines, args.max_duration)
+        chunks = segment_chunks_smartly(
+            chunks, args.max_chars, args.max_lines, args.max_duration
+        )
         save_chunks(chunks, chunks_path)
 
     # ====== 步骤6：生成字幕 ======
